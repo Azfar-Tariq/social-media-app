@@ -10,7 +10,7 @@ export default function Navigation() {
   return (
     <nav className="flex justify-between items-center p-4">
       <Link href="/" className="text-xl font-bold">
-        SocialApp
+        Chirpify
       </Link>
       <div>
         {session ? (

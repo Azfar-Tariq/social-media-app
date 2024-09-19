@@ -6,6 +6,12 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  console.log("API route hit:", params.id);
+  console.log("Received ID:", params.id);
+  if (!ObjectId.isValid(params.id)) {
+    console.log("Invalid ObjectId");
+    return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
+  }
   const client = await clientPromise;
   const db = client.db();
 

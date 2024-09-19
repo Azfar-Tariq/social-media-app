@@ -57,7 +57,9 @@ export function Post({ post }: PostProps) {
     fetchComments();
   }, [fetchLikes, fetchComments]);
 
-  const handleLike = async () => {
+  const handleLike = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     try {
       const response = await fetch("/api/likes", {
         method: "POST",

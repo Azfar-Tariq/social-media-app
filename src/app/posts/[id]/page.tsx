@@ -16,16 +16,19 @@ export default function PostPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchPost = useCallback(async () => {
+    console.log("Fetching post with ID:", postId);
     try {
       const response = await fetch(`/api/posts/${postId}`);
+      console.log("Response status:", response.status);
       if (!response.ok) {
         throw new Error("Failed to fetch post");
       }
       const data = await response.json();
+      console.log("Fetched post data:", data);
       setPost(data);
     } catch (err) {
+      console.error("Error fetching post:", err);
       setError("Failed to fetch post");
-      console.error(err);
     }
   }, [postId]);
 

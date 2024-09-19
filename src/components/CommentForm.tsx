@@ -42,7 +42,7 @@ export function CommentForm({ postId, onCommentAdded }: CommentFormProps) {
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        className="w-full p-2 border rounded"
+        className="w-full p-2 border rounded text-black placeholder:text-gray-400"
         placeholder="Write a comment..."
         rows={3}
         disabled={isLoading}
