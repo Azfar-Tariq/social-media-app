@@ -1,29 +1,21 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
-// import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function LoginPage() {
-  // const router = useRouter();
-  // console.log("Here");
+  const router = useRouter();
   const { data: session } = useSession();
 
+  useEffect(() => {
+    if (session) {
+      router.push("/");
+    }
+  }, [session, router]);
+
   if (session) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen py-2">
-        <h1 className="text-4xl font-bold mb-5">
-          Welcome, {session.user.name}!
-        </h1>
-        <p className="mb-5">You are logged in with {session.user.email}</p>
-        <Button
-          onClick={() => signOut()}
-          className="bg-red-500 hover:bg-red-700"
-        >
-          Sign out
-        </Button>
-      </div>
-    );
+    return null; // or a loading indicator if you prefer
   }
 
   return (
