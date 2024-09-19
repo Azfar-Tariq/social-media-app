@@ -1,8 +1,5 @@
-import NextAuth, { NextAuthOptions, DefaultSession } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import { MongoDBAdapter } from "@auth/mongodb-adapter";
-import type { Adapter } from "next-auth/adapters";
-import clientPromise from "@/lib/mongodb";
+import NextAuth, { DefaultSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
 
 // Extend the built-in session type
 declare module "next-auth" {
@@ -12,24 +9,6 @@ declare module "next-auth" {
     } & DefaultSession["user"];
   }
 }
-
-export const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(clientPromise) as Adapter,
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
-  callbacks: {
-    session: async ({ session, user }) => {
-      if (session?.user) {
-        session.user.id = user.id;
-      }
-      return session;
-    },
-  },
-};
 
 const handler = NextAuth(authOptions);
 
