@@ -31,7 +31,6 @@ export default function LoginPage() {
           >
             Sign in with Google
           </button>
-          {/* Add other sign-in methods here */}
         </div>
       </div>
     </div>
