@@ -7,7 +7,7 @@
 .yarn/install-state.gz
 
 # uploads
-/public/uploads/*
+/public
 
 # testing
 /coverage
