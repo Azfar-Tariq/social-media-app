@@ -22,6 +22,11 @@ interface PostProps {
     content: string;
     createdAt: string;
     author: User;
+    media?: {
+      type: string;
+      url: string;
+      thumbnail?: string;
+    };
   };
   showComments?: boolean;
 }
@@ -143,6 +148,25 @@ export function Post({ post, showComments = true }: PostProps) {
         <p className="text-onSurface mb-4 whitespace-pre-wrap">
           {post.content}
         </p>
+
+        {post.media && (
+          <div className="mb-4 rounded-lg overflow-hidden">
+            {post.media.type === "image" ? (
+              <img
+                src={post.media.url}
+                alt="Post content"
+                className="w-full h-auto max-h-[500px] object-cover"
+              />
+            ) : (
+              <video
+                src={post.media.url}
+                controls
+                className="w-full h-auto max-h-[500px]"
+                poster={post.media.thumbnail}
+              />
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between border-t border-border/50 pt-4">
           <div className="flex items-center space-x-4">

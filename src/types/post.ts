@@ -1,10 +1,13 @@
+import { User } from "@/models/user";
+
 export interface PostType {
   _id: string;
   content: string;
-  authorId: string;
   createdAt: string;
-  author: {
-    name: string;
-    image: string;
+  author: User;
+  media?: {
+    type: "image" | "video";
+    url: string;
+    thumbnail?: string;
   };
 }

@@ -7,13 +7,16 @@ import Link from "next/link";
 import { Post } from "@/components/Post";
 import { PostType } from "@/types/post";
 import { motion } from "framer-motion";
-import { Plus, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MediaUpload } from "@/components/MediaUpload";
 
 export default function Home() {
   const { data: session, status } = useSession();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [newPost, setNewPost] = useState("");
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -29,17 +32,30 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPost.trim()) return;
+    if (!newPost.trim() && !mediaFile) return;
 
-    const res = await fetch("/api/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newPost }),
-    });
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("content", newPost);
+      if (mediaFile) {
+        formData.append("media", mediaFile);
+      }
 
-    if (res.ok) {
-      setNewPost("");
-      fetchPosts();
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        setNewPost("");
+        setMediaFile(null);
+        fetchPosts();
+      }
+    } catch (error) {
+      console.error("Error creating post:", error);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -132,14 +148,19 @@ export default function Home() {
             className="w-full p-4 rounded-lg border border-border/50 bg-background text-onBackground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
             rows={3}
           />
+          <div className="mt-4">
+            <MediaUpload
+              onMediaSelected={(file) => setMediaFile(file)}
+              onRemove={() => setMediaFile(null)}
+            />
+          </div>
           <div className="flex justify-end mt-4">
             <Button
               type="submit"
-              disabled={!newPost.trim()}
+              disabled={isUploading || (!newPost.trim() && !mediaFile)}
               className="bg-primary text-onPrimary hover:bg-primary/90"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Post
+              {isUploading ? "Posting..." : "Post"}
             </Button>
           </div>
         </motion.form>
