@@ -1,21 +1,23 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Image, Video, X } from "lucide-react";
+import { Image as ImageIcon, Video, X } from "lucide-react";
+import Image from "next/image";
 
 interface MediaUploadProps {
   onMediaSelected: (file: File) => void;
   onRemove: () => void;
-  mediaType?: "image" | "video";
   mediaUrl?: string;
 }
 
 export function MediaUpload({
   onMediaSelected,
   onRemove,
-  mediaType,
   mediaUrl,
 }: MediaUploadProps) {
   const [preview, setPreview] = useState<string | null>(mediaUrl || null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,9 +32,13 @@ export function MediaUpload({
       return;
     }
 
+    // Set media type
+    setMediaType(isImage ? "image" : "video");
+
     // Create preview URL
     const previewUrl = URL.createObjectURL(file);
     setPreview(previewUrl);
+    setMediaFile(file);
     onMediaSelected(file);
   };
 
@@ -41,6 +47,8 @@ export function MediaUpload({
       URL.revokeObjectURL(preview);
     }
     setPreview(null);
+    setMediaFile(null);
+    setMediaType(null);
     onRemove();
   };
 
@@ -57,11 +65,16 @@ export function MediaUpload({
       {preview ? (
         <div className="relative">
           {mediaType === "image" ? (
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-full h-auto max-h-[300px] object-cover rounded-lg"
-            />
+            <div className="relative w-full h-[300px]">
+              <Image
+                src={preview}
+                alt="Preview"
+                fill
+                className="object-cover rounded-lg"
+                unoptimized
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+            </div>
           ) : (
             <video
               src={preview}
@@ -86,7 +99,7 @@ export function MediaUpload({
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center space-x-2"
           >
-            <Image className="h-4 w-4" />
+            <ImageIcon className="h-4 w-4" />
             <span>Add Image</span>
           </Button>
           <Button

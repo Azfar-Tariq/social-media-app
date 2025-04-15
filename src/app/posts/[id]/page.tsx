@@ -6,11 +6,12 @@ import { Post } from "@/components/Post";
 import { CommentForm } from "@/components/CommentForm";
 import { CommentList } from "@/components/CommentList";
 import { Comment as CustomComment } from "@/types/comment";
+import { PostType } from "@/types/post";
 
 export default function PostPage() {
   const { id } = useParams();
   const postId = Array.isArray(id) ? id[0] : id;
-  const [post, setPost] = useState(null);
+  const [post, setPost] = useState<PostType | null>(null);
   const [comments, setComments] = useState<CustomComment[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);

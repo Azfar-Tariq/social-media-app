@@ -33,7 +33,9 @@ export async function GET(
           _id: 1,
           content: 1,
           createdAt: 1,
+          media: 1,
           author: {
+            _id: 1,
             name: 1,
             image: 1,
           },
