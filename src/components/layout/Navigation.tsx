@@ -35,7 +35,11 @@ export default function Navigation() {
             {session ? (
               <>
                 <Link href="/">
-                  <Button variant="ghost" size="icon">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-background/50 transition-colors"
+                  >
                     <Home className="h-5 w-5" />
                   </Button>
                 </Link>
@@ -61,14 +65,17 @@ export default function Navigation() {
                     className="bg-surface border border-border/50 shadow-lg z-50"
                   >
                     <DropdownMenuItem asChild>
-                      <Link href="/profile" className="flex items-center">
+                      <Link
+                        href="/profile"
+                        className="flex items-center cursor-pointer hover:bg-background/50 transition-colors"
+                      >
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => signOut()}
-                      className="text-red-500"
+                      className="text-red-500 cursor-pointer hover:bg-background/50 transition-colors"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Sign out</span>

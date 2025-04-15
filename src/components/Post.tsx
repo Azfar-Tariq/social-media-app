@@ -158,8 +158,12 @@ export function Post({ post, showComments = true }: PostProps) {
                 align="end"
                 className="bg-surface border border-border/50 shadow-lg z-50"
               >
-                <DropdownMenuItem>Report</DropdownMenuItem>
-                <DropdownMenuItem>Share</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer hover:bg-background/50 transition-colors">
+                  Report
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer hover:bg-background/50 transition-colors">
+                  Share
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
