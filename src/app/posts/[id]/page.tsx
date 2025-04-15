@@ -65,10 +65,14 @@ export default function PostPage() {
   if (!post) return <div>Post not found</div>;
 
   return (
-    <div className="max-w-2xl mx-auto mt-8">
-      <Post post={post} />
-      <CommentForm postId={postId} onCommentAdded={handleCommentAdded} />
-      <CommentList comments={comments} />
+    <div className="max-w-2xl mx-auto mt-8 space-y-8">
+      <Post post={post} showComments={false} />
+      <div className="mt-8">
+        <CommentForm postId={postId} onCommentAdded={handleCommentAdded} />
+      </div>
+      <div className="mt-8">
+        <CommentList comments={comments} />
+      </div>
     </div>
   );
 }

@@ -13,24 +13,25 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { useRouter } from "next/navigation";
+import { User } from "@/models/user";
 
 interface PostProps {
   post: {
     _id: string;
     content: string;
     createdAt: string;
-    author: {
-      name: string;
-      image: string;
-    };
+    author: User;
   };
+  showComments?: boolean;
 }
 
-export function Post({ post }: PostProps) {
+export function Post({ post, showComments = true }: PostProps) {
   const [likes, setLikes] = useState<number | null>(null);
   const [liked, setLiked] = useState(false);
   const [comments, setComments] = useState<CustomComment[]>([]);
   const [error, setError] = useState("");
+  const router = useRouter();
 
   const fetchLikes = useCallback(async () => {
     try {
@@ -63,8 +64,10 @@ export function Post({ post }: PostProps) {
 
   useEffect(() => {
     fetchLikes();
-    fetchComments();
-  }, [fetchLikes, fetchComments]);
+    if (showComments) {
+      fetchComments();
+    }
+  }, [fetchLikes, fetchComments, showComments]);
 
   const handleLike = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -90,16 +93,28 @@ export function Post({ post }: PostProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-surface rounded-xl shadow-sm border border-border/50 overflow-hidden"
+      className="bg-surface rounded-xl shadow-sm border border-border/50 overflow-hidden cursor-pointer"
+      onClick={() => router.push(`/posts/${post._id}`)}
     >
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={post.author.image} alt={post.author.name} />
-            </Avatar>
+            <Link
+              href={`/profile/${post.author._id}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Avatar className="h-10 w-10 cursor-pointer hover:opacity-90 transition-opacity">
+                <AvatarImage src={post.author.image} alt={post.author.name} />
+              </Avatar>
+            </Link>
             <div>
-              <p className="font-semibold text-onSurface">{post.author.name}</p>
+              <Link
+                href={`/profile/${post.author._id}`}
+                className="font-semibold text-onSurface hover:text-primary transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {post.author.name}
+              </Link>
               <p className="text-sm text-muted-foreground">
                 {formatDistanceToNow(new Date(post.createdAt))} ago
               </p>
@@ -107,11 +122,18 @@ export function Post({ post }: PostProps) {
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent
+              align="end"
+              className="bg-surface border border-border/50 shadow-lg z-50"
+            >
               <DropdownMenuItem>Report</DropdownMenuItem>
               <DropdownMenuItem>Share</DropdownMenuItem>
             </DropdownMenuContent>
@@ -132,13 +154,18 @@ export function Post({ post }: PostProps) {
                   className={`flex items-center space-x-1 ${
                     liked ? "text-red-500" : ""
                   }`}
-                  onClick={handleLike}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLike(e);
+                  }}
                 >
                   <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
                   <span>{likes === null ? "0" : likes}</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Like</TooltipContent>
+              <TooltipContent className="bg-surface border border-border/50 shadow-lg z-50">
+                Like
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -147,31 +174,37 @@ export function Post({ post }: PostProps) {
                   variant="ghost"
                   size="sm"
                   className="flex items-center space-x-1"
-                  asChild
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <Link href={`/posts/${post._id}`}>
-                    <MessageCircle className="h-4 w-4" />
-                    <span>{comments.length}</span>
-                  </Link>
+                  <MessageCircle className="h-4 w-4" />
+                  <span>{comments.length}</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Comments</TooltipContent>
+              <TooltipContent className="bg-surface border border-border/50 shadow-lg z-50">
+                Comments
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Share2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Share</TooltipContent>
+              <TooltipContent className="bg-surface border border-border/50 shadow-lg z-50">
+                Share
+              </TooltipContent>
             </Tooltip>
           </div>
         </div>
 
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
-        {comments.length > 0 && (
+        {showComments && comments.length > 0 && (
           <div className="mt-4 space-y-2">
             {comments.slice(0, 3).map((comment) => (
               <div
