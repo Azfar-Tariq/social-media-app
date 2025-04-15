@@ -1,9 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MessageCircle } from "lucide-react";
-import Image from "next/image";
+import { Heart, MessageCircle, MoreHorizontal, Share2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Comment as CustomComment } from "@/types/comment";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 interface PostProps {
   post: {
@@ -77,60 +86,124 @@ export function Post({ post }: PostProps) {
   };
 
   return (
-    <Link href={`/posts/${post._id}`}>
-      <div className="border rounded-lg p-4 mb-4">
-        <div className="flex items-center mb-2">
-          <Image
-            src={post.author.image}
-            alt={post.author.name}
-            className="w-10 h-10 rounded-full mr-2"
-            width={40}
-            height={40}
-          />
-          <span className="font-semibold">{post.author.name}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="bg-surface rounded-xl shadow-sm border border-border/50 overflow-hidden"
+    >
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={post.author.image} alt={post.author.name} />
+            </Avatar>
+            <div>
+              <p className="font-semibold text-onSurface">{post.author.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatDistanceToNow(new Date(post.createdAt))} ago
+              </p>
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>Report</DropdownMenuItem>
+              <DropdownMenuItem>Share</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <p className="mb-2">{post.content}</p>
-        <div className="flex items-center text-gray-500 text-sm">
-          <span className="mr-2">
-            {formatDistanceToNow(new Date(post.createdAt))} ago
-          </span>
-          <button
-            onClick={handleLike}
-            className={`flex items-center hover:text-red-500 mr-2 ${
-              liked ? "text-red-500" : ""
-            }`}
-          >
-            <Heart size={16} className="mr-1" /> {likes === null ? "0" : likes}
-          </button>
-          <div className="flex items-center hover:text-blue-500">
-            <MessageCircle size={16} className="mr-1" /> {comments.length}{" "}
-            Comments
+
+        <p className="text-onSurface mb-4 whitespace-pre-wrap">
+          {post.content}
+        </p>
+
+        <div className="flex items-center justify-between border-t border-border/50 pt-4">
+          <div className="flex items-center space-x-4">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`flex items-center space-x-1 ${
+                    liked ? "text-red-500" : ""
+                  }`}
+                  onClick={handleLike}
+                >
+                  <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
+                  <span>{likes === null ? "0" : likes}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Like</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center space-x-1"
+                  asChild
+                >
+                  <Link href={`/posts/${post._id}`}>
+                    <MessageCircle className="h-4 w-4" />
+                    <span>{comments.length}</span>
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Comments</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Share</TooltipContent>
+            </Tooltip>
           </div>
         </div>
-        {error && <p className="text-red-500 mt-2">{error}</p>}
-        <div className="mt-4">
-          {comments.slice(0, 3).map((comment) => (
-            <div key={comment._id} className="text-sm mb-2">
-              <div className="flex items-center mb-1">
-                <Image
-                  src={comment.author.image}
-                  alt={comment.author.name}
-                  className="w-5 h-5 rounded-full mr-2"
-                  width={40}
-                  height={40}
-                />
-                <span className="font-semibold">{comment.author.name}</span>
+
+        {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+
+        {comments.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {comments.slice(0, 3).map((comment) => (
+              <div
+                key={comment._id}
+                className="flex items-start space-x-2 text-sm"
+              >
+                <Avatar className="h-6 w-6">
+                  <AvatarImage
+                    src={comment.author.image}
+                    alt={comment.author.name}
+                  />
+                  <AvatarFallback>{comment.author.name[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-onSurface">
+                    {comment.author.name}
+                  </p>
+                  <p className="text-muted-foreground">{comment.content}</p>
+                </div>
               </div>
-              <p className="ml-7">{comment.content}</p>
-            </div>
-          ))}
-          {comments.length > 3 && (
-            <Link href={`/posts/${post._id}`} className="text-sm text-blue-500">
-              View all comments
-            </Link>
-          )}
-        </div>
+            ))}
+            {comments.length > 3 && (
+              <Link
+                href={`/posts/${post._id}`}
+                className="text-sm text-primary hover:underline"
+              >
+                View all comments
+              </Link>
+            )}
+          </div>
+        )}
       </div>
-    </Link>
+    </motion.div>
   );
 }

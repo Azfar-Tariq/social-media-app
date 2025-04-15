@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Post } from "@/components/Post";
 import { PostType } from "@/types/post";
+import { motion } from "framer-motion";
+import { Plus, LogIn } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -50,54 +53,110 @@ export default function Home() {
 
   if (!session) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-onBackground">
-        <h1 className="text-5xl font-bold mb-4">Welcome to Chirpify</h1>
-        <p className="text-xl mb-8">
-          Connect with friends and share your moments
-        </p>
-        <div className="space-x-4">
-          <Link href="/login">
-            <Button className="bg-primary text-onPrimary hover:bg-primary/80">
-              Sign In
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button className="bg-surface text-onSurface border border-primary hover:bg-surface/80">
-              Sign Up
-            </Button>
-          </Link>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md text-center"
+        >
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-2"
+          >
+            Welcome to Chirpify
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="text-muted-foreground mb-8"
+          >
+            Connect with friends and share your moments
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="space-y-4"
+          >
+            <Link href="/login">
+              <Button className="w-full bg-primary text-onPrimary hover:bg-primary/90">
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign in to continue
+              </Button>
+            </Link>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto mt-10 text-onBackground">
-      <h1 className="text-3xl font-bold mb-5">
-        Welcome, {session.user?.name}!
-      </h1>
+    <div className="container mx-auto px-4 py-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-2xl mx-auto"
+      >
+        <div className="flex items-center space-x-4 mb-8">
+          <Avatar className="h-12 w-12">
+            <AvatarImage
+              src={session.user?.image || ""}
+              alt={session.user?.name || ""}
+            />
+            <AvatarFallback>{session.user?.name?.[0] || "U"}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-2xl font-bold text-onBackground">
+              Welcome back, {session.user?.name}!
+            </h1>
+            <p className="text-muted-foreground">What&apos;s on your mind?</p>
+          </div>
+        </div>
 
-      <form onSubmit={handleSubmit} className="mb-8">
-        <textarea
-          value={newPost}
-          onChange={(e) => setNewPost(e.target.value)}
-          placeholder="What's on your mind?"
-          className="w-full p-2 border rounded bg-surface text-onSurface"
-          rows={3}
-        />
-        <Button
-          type="submit"
-          className="mt-2 bg-primary text-onPrimary hover:bg-primary/80"
+        <motion.form
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          onSubmit={handleSubmit}
+          className="bg-surface rounded-xl shadow-lg border border-border/50 p-6 mb-8"
         >
-          Post
-        </Button>
-      </form>
+          <textarea
+            value={newPost}
+            onChange={(e) => setNewPost(e.target.value)}
+            placeholder="Share your thoughts..."
+            className="w-full p-4 rounded-lg border border-border/50 bg-background text-onBackground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+            rows={3}
+          />
+          <div className="flex justify-end mt-4">
+            <Button
+              type="submit"
+              disabled={!newPost.trim()}
+              className="bg-primary text-onPrimary hover:bg-primary/90"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Post
+            </Button>
+          </div>
+        </motion.form>
 
-      <div>
-        {posts.map((post) => (
-          <Post key={post._id} post={post} />
-        ))}
-      </div>
+        <div className="space-y-6">
+          {posts.map((post, index) => (
+            <motion.div
+              key={post._id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+            >
+              <Post post={post} />
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 }

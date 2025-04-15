@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import ClientSessionProvider from "./ClientSessionProvider";
 import Navigation from "@/components/layout/Navigation";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -35,8 +36,10 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-onBackground`}
       >
         <ClientSessionProvider session={session}>
-          <Navigation />
-          <main className="container mx-auto mt-4">{children}</main>
+          <TooltipProvider>
+            <Navigation />
+            <main className="container mx-auto mt-4">{children}</main>
+          </TooltipProvider>
         </ClientSessionProvider>
       </body>
     </html>

@@ -1,37 +1,47 @@
 import { formatDistanceToNow } from "date-fns";
-import Image from "next/image";
+import { motion } from "framer-motion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Comment as CustomComment } from "@/types/comment";
-import { useSession } from "next-auth/react";
 
 interface CommentListProps {
   comments: CustomComment[];
 }
 
 export function CommentList({ comments }: CommentListProps) {
-  const { data: session } = useSession();
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">Comments</h2>
+    <div className="space-y-4">
       {comments.length === 0 ? (
-        <p>No comments yet.</p>
+        <p className="text-center text-muted-foreground">No comments yet.</p>
       ) : (
-        comments.map((comment) => (
-          <div key={comment._id} className="border-b pb-4 mb-4">
-            <div className="flex items-center mb-2">
-              <Image
-                src={session?.user?.image || ""}
-                alt={session?.user?.name || ""}
-                className="w-8 h-8 rounded-full mr-2"
-                width={32}
-                height={32}
-              />
-              <span className="font-semibold">{session?.user?.name}</span>
+        comments.map((comment, index) => (
+          <motion.div
+            key={comment._id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: index * 0.05 }}
+            className="bg-surface rounded-xl border border-border/50 p-4"
+          >
+            <div className="flex items-start space-x-3">
+              <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src={comment.author.image}
+                  alt={comment.author.name}
+                />
+                <AvatarFallback>{comment.author.name[0]}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <p className="font-medium text-onSurface">
+                    {comment.author.name}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDistanceToNow(new Date(comment.createdAt))} ago
+                  </span>
+                </div>
+                <p className="mt-1 text-onSurface">{comment.content}</p>
+              </div>
             </div>
-            <p className="mb-2">{comment.content}</p>
-            <span className="text-gray-500 text-sm">
-              {formatDistanceToNow(new Date(comment.createdAt))} ago
-            </span>
-          </div>
+          </motion.div>
         ))
       )}
     </div>
