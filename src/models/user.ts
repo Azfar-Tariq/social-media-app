@@ -1,12 +1,6 @@
-import { ObjectId } from "mongodb";
-
 export interface User {
-  _id: ObjectId;
+  _id: string;
   name: string;
-  email: string;
+  email?: string;
   image?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  followers: ObjectId[];
-  following: ObjectId[];
 }

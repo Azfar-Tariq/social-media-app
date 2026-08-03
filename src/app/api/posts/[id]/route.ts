@@ -1,52 +1,57 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { posts, users } from "@/db/schema";
+import { serializePost } from "@/lib/serializers";
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
-  console.log("API route hit:", params.id);
-  console.log("Received ID:", params.id);
-  if (!ObjectId.isValid(params.id)) {
-    console.log("Invalid ObjectId");
-    return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
-  }
-  const client = await clientPromise;
-  const db = client.db();
+  const { id } = params;
 
-  const post = await db
-    .collection("posts")
-    .aggregate([
-      { $match: { _id: new ObjectId(params.id) } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "authorId",
-          foreignField: "_id",
-          as: "author",
+  try {
+    const [row] = await db
+      .select({
+        id: posts.id,
+        content: posts.content,
+        createdAt: posts.createdAt,
+        mediaType: posts.mediaType,
+        mediaUrl: posts.mediaUrl,
+        mediaThumbnail: posts.mediaThumbnail,
+        authorId: users.id,
+        authorName: users.name,
+        authorImage: users.image,
+      })
+      .from(posts)
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .where(eq(posts.id, id))
+      .limit(1);
+
+    if (!row) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(
+      serializePost({
+        id: row.id,
+        content: row.content,
+        createdAt: row.createdAt,
+        mediaType: row.mediaType,
+        mediaUrl: row.mediaUrl,
+        mediaThumbnail: row.mediaThumbnail,
+        author: {
+          id: row.authorId,
+          name: row.authorName,
+          image: row.authorImage,
         },
-      },
-      { $unwind: "$author" },
-      {
-        $project: {
-          _id: 1,
-          content: 1,
-          createdAt: 1,
-          media: 1,
-          author: {
-            _id: 1,
-            name: 1,
-            image: 1,
-          },
-        },
-      },
-    ])
-    .next();
-
-  if (!post) {
-    return NextResponse.json({ error: "Post not found" }, { status: 404 });
+      })
+    );
+  } catch (error) {
+    console.error("Error fetching post:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch post" },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json(post);
 }

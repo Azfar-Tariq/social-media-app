@@ -1,8 +1,7 @@
-import { ObjectId } from "mongodb";
-
 export interface Comment {
-  _id: ObjectId;
+  id: string;
   content: string;
-  authorId: ObjectId;
+  authorId: string;
+  postId: string;
   createdAt: Date;
 }

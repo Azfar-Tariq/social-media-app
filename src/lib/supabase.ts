@@ -1,0 +1,20 @@
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+
+export const UPLOADS_BUCKET = "uploads";
+
+let _client: SupabaseClient | null = null;
+
+/** Server-side client with service role — use only in API routes */
+export function getSupabaseAdmin() {
+  if (!_client) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+      throw new Error(
+        "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+      );
+    }
+    _client = createClient(url, key);
+  }
+  return _client;
+}

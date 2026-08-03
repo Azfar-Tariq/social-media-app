@@ -1,28 +1,62 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import { desc, eq } from "drizzle-orm";
 import { authOptions } from "@/lib/authOptions";
-import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { db } from "@/db";
+import { comments, users } from "@/db/schema";
+import { serializeComment } from "@/lib/serializers";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const { postId, content } = await request.json();
 
-  const client = await clientPromise;
-  const db = client.db();
+  if (!postId || !content?.trim()) {
+    return NextResponse.json(
+      { error: "Post ID and content are required" },
+      { status: 400 }
+    );
+  }
 
-  const result = await db.collection("comments").insertOne({
-    postId: new ObjectId(postId),
-    authorId: new ObjectId(session.user.id),
-    content,
-    createdAt: new Date(),
-  });
+  try {
+    const [comment] = await db
+      .insert(comments)
+      .values({
+        postId,
+        authorId: session.user.id,
+        content: content.trim(),
+      })
+      .returning({
+        id: comments.id,
+        content: comments.content,
+        createdAt: comments.createdAt,
+        authorId: comments.authorId,
+      });
 
-  return NextResponse.json({ id: result.insertedId });
+    const [author] = await db
+      .select({ name: users.name, image: users.image })
+      .from(users)
+      .where(eq(users.id, comment.authorId))
+      .limit(1);
+
+    return NextResponse.json(
+      serializeComment({
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        author: author ?? { name: session.user.name ?? null, image: session.user.image ?? null },
+      })
+    );
+  } catch (error) {
+    console.error("Error creating comment:", error);
+    return NextResponse.json(
+      { error: "Failed to create comment" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET(request: Request) {
@@ -33,36 +67,35 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
   }
 
-  const client = await clientPromise;
-  const db = client.db();
+  try {
+    const rows = await db
+      .select({
+        id: comments.id,
+        content: comments.content,
+        createdAt: comments.createdAt,
+        authorName: users.name,
+        authorImage: users.image,
+      })
+      .from(comments)
+      .innerJoin(users, eq(comments.authorId, users.id))
+      .where(eq(comments.postId, postId))
+      .orderBy(desc(comments.createdAt));
 
-  const comments = await db
-    .collection("comments")
-    .aggregate([
-      { $match: { postId: new ObjectId(postId) } },
-      { $sort: { createdAt: -1 } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "authorId",
-          foreignField: "_id",
-          as: "author",
-        },
-      },
-      { $unwind: "$author" },
-      {
-        $project: {
-          _id: 1,
-          content: 1,
-          createdAt: 1,
-          author: {
-            name: 1,
-            image: 1,
-          },
-        },
-      },
-    ])
-    .toArray();
-
-  return NextResponse.json(comments);
+    return NextResponse.json(
+      rows.map((row) =>
+        serializeComment({
+          id: row.id,
+          content: row.content,
+          createdAt: row.createdAt,
+          author: { name: row.authorName, image: row.authorImage },
+        })
+      )
+    );
+  } catch (error) {
+    console.error("Error fetching comments:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch comments" },
+      { status: 500 }
+    );
+  }
 }

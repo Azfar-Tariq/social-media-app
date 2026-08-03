@@ -1,14 +1,10 @@
-import { ObjectId } from "mongodb";
-
 export interface Post {
-  _id: ObjectId;
+  id: string;
   content: string;
-  authorId: ObjectId;
+  authorId: string;
   createdAt: Date;
   updatedAt: Date;
-  media?: {
-    type: "image" | "video";
-    url: string;
-    thumbnail?: string;
-  };
+  mediaType?: "image" | "video" | null;
+  mediaUrl?: string | null;
+  mediaThumbnail?: string | null;
 }

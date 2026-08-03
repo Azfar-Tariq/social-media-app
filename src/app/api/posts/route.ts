@@ -1,57 +1,43 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import { desc, eq } from "drizzle-orm";
 import { authOptions } from "@/lib/authOptions";
-import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
-import { writeFile } from "fs/promises";
-import { join } from "path";
+import { db } from "@/db";
+import { posts, users } from "@/db/schema";
+import { uploadMedia } from "@/lib/upload";
+import { serializePost } from "@/lib/serializers";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   try {
     const formData = await request.formData();
-    const content = formData.get("content") as string;
+    const content = (formData.get("content") as string) ?? "";
     const mediaFile = formData.get("media") as File | null;
 
-    let mediaUrl = null;
-    if (mediaFile) {
-      const bytes = await mediaFile.arrayBuffer();
-      const buffer = new Uint8Array(bytes);
+    let mediaType: "image" | "video" | null = null;
+    let mediaUrl: string | null = null;
 
-      // Create a unique filename
-      const timestamp = Date.now();
-      const extension = mediaFile.name.split(".").pop();
-      const filename = `${timestamp}.${extension}`;
-
-      // Save the file to the public/uploads directory
-      const uploadDir = join(process.cwd(), "public", "uploads");
-      const filePath = join(uploadDir, filename);
-      await writeFile(filePath, buffer);
-
-      // Determine media type
-      const isImage = mediaFile.type.startsWith("image/");
-
-      mediaUrl = {
-        type: isImage ? "image" : "video",
-        url: `/uploads/${filename}`,
-      };
+    if (mediaFile && mediaFile.size > 0) {
+      const uploaded = await uploadMedia(mediaFile, session.user.id);
+      mediaType = uploaded.type;
+      mediaUrl = uploaded.url;
     }
 
-    const client = await clientPromise;
-    const db = client.db();
+    const [post] = await db
+      .insert(posts)
+      .values({
+        content,
+        authorId: session.user.id,
+        mediaType,
+        mediaUrl,
+      })
+      .returning({ id: posts.id });
 
-    const result = await db.collection("posts").insertOne({
-      content,
-      authorId: new ObjectId(session.user.id),
-      createdAt: new Date(),
-      media: mediaUrl,
-    });
-
-    return NextResponse.json({ id: result.insertedId });
+    return NextResponse.json({ id: post.id });
   } catch (error) {
     console.error("Error creating post:", error);
     return NextResponse.json(
@@ -62,37 +48,46 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const client = await clientPromise;
-  const db = client.db();
+  try {
+    const rows = await db
+      .select({
+        id: posts.id,
+        content: posts.content,
+        createdAt: posts.createdAt,
+        mediaType: posts.mediaType,
+        mediaUrl: posts.mediaUrl,
+        mediaThumbnail: posts.mediaThumbnail,
+        authorId: users.id,
+        authorName: users.name,
+        authorImage: users.image,
+      })
+      .from(posts)
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .orderBy(desc(posts.createdAt))
+      .limit(20);
 
-  const posts = await db
-    .collection("posts")
-    .aggregate([
-      { $sort: { createdAt: -1 } },
-      { $limit: 20 },
-      {
-        $lookup: {
-          from: "users",
-          localField: "authorId",
-          foreignField: "_id",
-          as: "author",
-        },
-      },
-      { $unwind: "$author" },
-      {
-        $project: {
-          _id: 1,
-          content: 1,
-          createdAt: 1,
-          media: 1,
+    return NextResponse.json(
+      rows.map((row) =>
+        serializePost({
+          id: row.id,
+          content: row.content,
+          createdAt: row.createdAt,
+          mediaType: row.mediaType,
+          mediaUrl: row.mediaUrl,
+          mediaThumbnail: row.mediaThumbnail,
           author: {
-            name: 1,
-            image: 1,
+            id: row.authorId,
+            name: row.authorName,
+            image: row.authorImage,
           },
-        },
-      },
-    ])
-    .toArray();
-
-  return NextResponse.json(posts);
+        })
+      )
+    );
+  } catch (error) {
+    console.error("Error fetching posts:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch posts" },
+      { status: 500 }
+    );
+  }
 }

@@ -1,42 +1,53 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import { and, count, eq } from "drizzle-orm";
 import { authOptions } from "@/lib/authOptions";
-import clientPromise from "@/lib/mongodb";
-import { ObjectId } from "mongodb";
+import { db } from "@/db";
+import { likes } from "@/db/schema";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const { postId } = await request.json();
 
-  const client = await clientPromise;
-  const db = client.db();
-
-  const existingLike = await db.collection("likes").findOne({
-    postId: new ObjectId(postId),
-    userId: new ObjectId(session.user.id),
-  });
-
-  if (existingLike) {
-    await db.collection("likes").deleteOne({
-      _id: existingLike._id,
-    });
-  } else {
-    await db.collection("likes").insertOne({
-      postId: new ObjectId(postId),
-      userId: new ObjectId(session.user.id),
-      createdAt: new Date(),
-    });
+  if (!postId) {
+    return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
   }
 
-  const likes = await db.collection("likes").countDocuments({
-    postId: new ObjectId(postId),
-  });
+  try {
+    const existing = await db
+      .select({ id: likes.id })
+      .from(likes)
+      .where(
+        and(eq(likes.postId, postId), eq(likes.userId, session.user.id))
+      )
+      .limit(1);
 
-  return NextResponse.json({ likes });
+    if (existing.length > 0) {
+      await db.delete(likes).where(eq(likes.id, existing[0].id));
+    } else {
+      await db.insert(likes).values({
+        postId,
+        userId: session.user.id,
+      });
+    }
+
+    const [result] = await db
+      .select({ value: count() })
+      .from(likes)
+      .where(eq(likes.postId, postId));
+
+    return NextResponse.json({ likes: result?.value ?? 0 });
+  } catch (error) {
+    console.error("Error updating like:", error);
+    return NextResponse.json(
+      { error: "Failed to update like" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET(request: Request) {
@@ -48,21 +59,33 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
   }
 
-  const client = await clientPromise;
-  const db = client.db();
+  try {
+    const [likeCount] = await db
+      .select({ value: count() })
+      .from(likes)
+      .where(eq(likes.postId, postId));
 
-  const likes = await db.collection("likes").countDocuments({
-    postId: new ObjectId(postId),
-  });
+    let userLiked = false;
+    if (session?.user?.id) {
+      const [userLike] = await db
+        .select({ id: likes.id })
+        .from(likes)
+        .where(
+          and(eq(likes.postId, postId), eq(likes.userId, session.user.id))
+        )
+        .limit(1);
+      userLiked = !!userLike;
+    }
 
-  let userLiked = false;
-  if (session) {
-    const userLike = await db.collection("likes").findOne({
-      postId: new ObjectId(postId),
-      userId: new ObjectId(session.user.id),
+    return NextResponse.json({
+      likes: likeCount?.value ?? 0,
+      userLiked,
     });
-    userLiked = !!userLike;
+  } catch (error) {
+    console.error("Error fetching likes:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch likes" },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ likes, userLiked });
 }
