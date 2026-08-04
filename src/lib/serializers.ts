@@ -20,6 +20,9 @@ export function serializePost(row: {
   mediaUrl: string | null;
   mediaThumbnail: string | null;
   author: { id: string; name: string | null; image: string | null };
+  likesCount?: number;
+  userLiked?: boolean;
+  commentsCount?: number;
 }) {
   return {
     _id: row.id,
@@ -33,6 +36,9 @@ export function serializePost(row: {
         }
       : undefined,
     author: serializeAuthor(row.author),
+    likesCount: row.likesCount ?? 0,
+    userLiked: row.userLiked ?? false,
+    commentsCount: row.commentsCount ?? 0,
   };
 }
 

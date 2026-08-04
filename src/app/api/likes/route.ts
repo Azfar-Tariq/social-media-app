@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { and, count, eq } from "drizzle-orm";
 import { authOptions } from "@/lib/authOptions";
 import { db } from "@/db";
-import { likes } from "@/db/schema";
+import { likes, posts } from "@/db/schema";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
 
   const { postId } = await request.json();
 
-  if (!postId) {
+  if (!postId || postId === "undefined") {
     return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
   }
 
@@ -33,6 +34,22 @@ export async function POST(request: Request) {
         postId,
         userId: session.user.id,
       });
+
+      // Find post author and trigger notification
+      const [post] = await db
+        .select({ authorId: posts.authorId })
+        .from(posts)
+        .where(eq(posts.id, postId))
+        .limit(1);
+
+      if (post) {
+        await createNotification({
+          userId: post.authorId,
+          actorId: session.user.id,
+          type: "like",
+          postId,
+        });
+      }
     }
 
     const [result] = await db
@@ -55,7 +72,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const postId = searchParams.get("postId");
 
-  if (!postId) {
+  if (!postId || postId === "undefined") {
     return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
   }
 

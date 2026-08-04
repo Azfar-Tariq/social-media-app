@@ -1,9 +1,12 @@
+"use client";
+
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Comment as CustomComment } from "@/types/comment";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSession } from "next-auth/react";
+import { Send } from "lucide-react";
 
 interface CommentFormProps {
   postId: string;
@@ -18,6 +21,8 @@ export function CommentForm({ postId, onCommentAdded }: CommentFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!content.trim()) return;
+
     setIsLoading(true);
     setError("");
 
@@ -25,7 +30,7 @@ export function CommentForm({ postId, onCommentAdded }: CommentFormProps) {
       const response = await fetch("/api/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId, content }),
+        body: JSON.stringify({ postId, content: content.trim() }),
       });
 
       if (!response.ok) {
@@ -48,33 +53,37 @@ export function CommentForm({ postId, onCommentAdded }: CommentFormProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       onSubmit={handleSubmit}
-      className="bg-surface rounded-xl border border-border/50 p-4"
+      className="glass-card rounded-2xl border border-white/10 p-4 shadow-lg"
     >
       <div className="flex items-start space-x-3">
-        <Avatar className="h-10 w-10">
+        <Avatar className="h-9 w-9 shrink-0 ring-1 ring-white/10">
           <AvatarImage
             src={session?.user?.image || ""}
             alt={session?.user?.name || ""}
           />
-          <AvatarFallback>{session?.user?.name?.[0] || "U"}</AvatarFallback>
+          <AvatarFallback className="bg-indigo-600 text-white text-xs font-semibold">
+            {session?.user?.name?.[0] || "U"}
+          </AvatarFallback>
         </Avatar>
-        <div className="flex-1">
+        <div className="flex-1 space-y-2">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full p-2 rounded-lg border border-border/50 bg-background text-onBackground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-            placeholder="Write a comment..."
-            rows={3}
+            className="w-full p-3 text-xs rounded-xl glass-input text-slate-100 placeholder:text-slate-500 focus:outline-none resize-none"
+            placeholder="Write a thoughtful comment..."
+            rows={2}
             disabled={isLoading}
           />
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-          <div className="flex justify-end mt-2">
+          {error && <p className="text-rose-400 text-xs">{error}</p>}
+          <div className="flex justify-end">
             <Button
               type="submit"
               disabled={isLoading || content.trim().length === 0}
-              className="bg-primary text-onPrimary hover:bg-primary/90"
+              size="sm"
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-medium px-4 py-1.5 rounded-xl shadow-md disabled:opacity-50 transition-all"
             >
-              {isLoading ? "Posting..." : "Post Comment"}
+              <Send className="h-3.5 w-3.5 mr-1.5" />
+              {isLoading ? "Posting..." : "Comment"}
             </Button>
           </div>
         </div>

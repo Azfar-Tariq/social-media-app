@@ -10,4 +10,7 @@ export interface PostType {
     url: string;
     thumbnail?: string;
   };
+  likesCount?: number;
+  userLiked?: boolean;
+  commentsCount?: number;
 }

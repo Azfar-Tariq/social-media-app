@@ -6,6 +6,7 @@ import {
   integer,
   uuid,
   unique,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 // ── NextAuth tables ──────────────────────────────────────────────────────────
@@ -18,6 +19,8 @@ export const users = pgTable("user", {
   email: text("email").notNull(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  bio: text("bio").default(""),
+  password: text("password"),
 });
 
 export const accounts = pgTable(
@@ -109,3 +112,33 @@ export const likes = pgTable(
     uniqueLike: unique().on(table.postId, table.userId),
   })
 );
+
+export const follows = pgTable(
+  "follows",
+  {
+    followerId: text("follower_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    followingId: text("following_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.followerId, table.followingId] }),
+  })
+);
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  actorId: text("actor_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").$type<"like" | "comment" | "follow">().notNull(),
+  postId: uuid("post_id").references(() => posts.id, { onDelete: "cascade" }),
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});

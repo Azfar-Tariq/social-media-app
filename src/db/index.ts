@@ -11,7 +11,12 @@ export function getDb(): Db {
     const connectionString =
       process.env.DATABASE_URL ||
       "postgres://postgres:postgres@127.0.0.1:5432/postgres";
-    const client = postgres(connectionString, { prepare: false });
+    const client = postgres(connectionString, {
+      prepare: false,
+      max: 10,
+      idle_timeout: 20,
+      connect_timeout: 10,
+    });
     _db = drizzle(client, { schema });
   }
   return _db;

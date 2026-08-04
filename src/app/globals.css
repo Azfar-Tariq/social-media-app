@@ -3,18 +3,57 @@
 @tailwind utilities;
 
 :root {
-  --background: 18 18 18;
-  --surface: 30 30 30;
-  --primary: 187 134 252;
-  --secondary: 3 218 198;
-  --error: 207 102 121;
-  --on-background: 225 225 225;
+  --background: 11 15 23;
+  --surface: 17 24 39;
+  --surface-hover: 31 41 55;
+  --primary: 59 130 246;
+  --primary-hover: 37 99 235;
+  --secondary: 16 185 129;
+  --error: 239 68 68;
+  --on-background: 248 250 252;
   --on-surface: 255 255 255;
-  --on-primary: 0 0 0;
-  --on-secondary: 0 0 0;
-  --on-error: 0 0 0;
+  --muted: 148 163 184;
+  --border: 31 41 55;
 }
 
 body {
-  @apply bg-background text-onBackground;
+  @apply bg-slate-950 text-slate-100 font-sans antialiased selection:bg-blue-600/30 selection:text-blue-400;
+  min-height: 100vh;
+}
+
+/* Crisp Card & Component Surfaces (No heavy blurs for maximum speed) */
+.card-surface {
+  background-color: #111827;
+  border: 1px solid #1F2937;
+  border-radius: 1rem;
+}
+
+.input-surface {
+  background-color: #1F2937;
+  border: 1px solid #374151;
+  color: #F8FAFC;
+}
+
+.input-surface:focus {
+  border-color: #3B82F6;
+  outline: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0F17;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
 }

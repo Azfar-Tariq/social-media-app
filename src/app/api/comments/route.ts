@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth/next";
 import { desc, eq } from "drizzle-orm";
 import { authOptions } from "@/lib/authOptions";
 import { db } from "@/db";
-import { comments, users } from "@/db/schema";
+import { comments, users, posts } from "@/db/schema";
 import { serializeComment } from "@/lib/serializers";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -42,6 +43,22 @@ export async function POST(request: Request) {
       .where(eq(users.id, comment.authorId))
       .limit(1);
 
+    // Notify post author
+    const [post] = await db
+      .select({ authorId: posts.authorId })
+      .from(posts)
+      .where(eq(posts.id, postId))
+      .limit(1);
+
+    if (post) {
+      await createNotification({
+        userId: post.authorId,
+        actorId: session.user.id,
+        type: "comment",
+        postId,
+      });
+    }
+
     return NextResponse.json(
       serializeComment({
         id: comment.id,
@@ -63,7 +80,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const postId = searchParams.get("postId");
 
-  if (!postId) {
+  if (!postId || postId === "undefined") {
     return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
   }
 

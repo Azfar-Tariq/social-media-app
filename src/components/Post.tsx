@@ -1,9 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MessageCircle, MoreHorizontal, Share2, X } from "lucide-react";
-import { motion } from "framer-motion";
-import { Comment as CustomComment } from "@/types/comment";
+import {
+  Heart,
+  MessageCircle,
+  MoreHorizontal,
+  Share2,
+  Bookmark,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useSession } from "next-auth/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +21,10 @@ import {
 } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { useRouter } from "next/navigation";
 import { User } from "@/models/user";
 import Image from "next/image";
+import { ToastContainer, ToastMessage } from "./ui/toast";
 
 interface PostProps {
   post: {
@@ -28,70 +37,117 @@ interface PostProps {
       url: string;
       thumbnail?: string;
     };
+    likesCount?: number;
+    userLiked?: boolean;
+    commentsCount?: number;
   };
-  showComments?: boolean;
+  onDelete?: (postId: string) => void;
+  priority?: boolean;
 }
 
-export function Post({ post, showComments = true }: PostProps) {
-  const [likes, setLikes] = useState<number | null>(null);
-  const [liked, setLiked] = useState(false);
-  const [comments, setComments] = useState<CustomComment[]>([]);
-  const [error, setError] = useState("");
+export function Post({ post, onDelete, priority = false }: PostProps) {
+  const { data: session } = useSession();
+  const isAuthor = session?.user?.id === post.author._id;
+
+  const [likes, setLikes] = useState<number>(post.likesCount ?? 0);
+  const [liked, setLiked] = useState<boolean>(post.userLiked ?? false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const router = useRouter();
 
-  const fetchLikes = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/likes?postId=${post._id}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch likes");
-      }
-      const data = await response.json();
-      setLikes(data.likes);
-      setLiked(data.userLiked);
-    } catch (err) {
-      setError("Failed to fetch likes");
-      console.error(err);
-    }
-  }, [post._id]);
+  const addToast = (type: "success" | "error" | "info", message: string) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  };
 
-  const fetchComments = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/comments?postId=${post._id}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch comments");
-      }
-      const data = await response.json();
-      setComments(data);
-    } catch (err) {
-      setError("Failed to fetch comments");
-      console.error(err);
-    }
-  }, [post._id]);
-
-  useEffect(() => {
-    fetchLikes();
-    if (showComments) {
-      fetchComments();
-    }
-  }, [fetchLikes, fetchComments, showComments]);
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   const handleLike = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
+
+    const previousLiked = liked;
+    const previousLikes = likes;
+
+    setLiked(!previousLiked);
+    setLikes(previousLiked ? previousLikes - 1 : previousLikes + 1);
+
     try {
       const response = await fetch("/api/likes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postId: post._id }),
       });
+
       if (!response.ok) {
-        throw new Error("Failed to update like");
+        setLiked(previousLiked);
+        setLikes(previousLikes);
       }
-      fetchLikes();
-    } catch (err) {
-      setError("Failed to update like");
-      console.error(err);
+    } catch {
+      setLiked(previousLiked);
+      setLikes(previousLikes);
+    }
+  };
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/posts/${post._id}`;
+
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        addToast("success", "Link copied to clipboard");
+      } catch {
+        addToast("info", `Post URL: ${shareUrl}`);
+      }
+    } else {
+      addToast("info", `Post URL: ${shareUrl}`);
+    }
+  };
+
+  const handleToggleSave = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsSaved((prev) => !prev);
+    addToast(
+      "info",
+      !isSaved ? "Saved to bookmarks" : "Removed from bookmarks"
+    );
+  };
+
+  const handleDeletePost = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this post?")) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/posts/${post._id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        addToast("success", "Post deleted");
+        if (onDelete) {
+          onDelete(post._id);
+        } else {
+          router.push("/");
+        }
+      } else {
+        addToast("error", "Failed to delete post");
+      }
+    } catch {
+      addToast("error", "Failed to delete post");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -101,218 +157,218 @@ export function Post({ post, showComments = true }: PostProps) {
   };
 
   const handlePostClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on media or buttons
     if (
       (e.target as HTMLElement).closest(".media-container") ||
-      (e.target as HTMLElement).closest("button")
+      (e.target as HTMLElement).closest("button") ||
+      (e.target as HTMLElement).closest("a")
     ) {
       return;
     }
     router.push(`/posts/${post._id}`);
   };
 
+  if (isDeleting) {
+    return (
+      <div className="card-surface p-4 text-center text-xs text-slate-400">
+        Deleting post...
+      </div>
+    );
+  }
+
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="bg-surface rounded-xl shadow-sm border border-border/50 overflow-hidden cursor-pointer"
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+      <div
+        className="card-surface p-5 cursor-pointer hover:border-slate-700 transition-colors duration-150"
         onClick={handlePostClick}
       >
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
+        {/* Post Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-3">
+            <Link
+              href="/profile"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0"
+            >
+              <Avatar className="h-10 w-10 border border-slate-800">
+                <AvatarImage
+                  src={post.author.image || ""}
+                  alt={post.author.name}
+                />
+                <AvatarFallback className="bg-slate-800 text-slate-200 font-semibold">
+                  {post.author.name?.[0] || "U"}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+            <div>
               <Link
-                href={`/profile/${post.author._id}`}
+                href="/profile"
+                className="font-semibold text-slate-100 hover:text-blue-400 text-sm transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Avatar className="h-10 w-10 cursor-pointer hover:opacity-90 transition-opacity">
-                  <AvatarImage src={post.author.image} alt={post.author.name} />
-                </Avatar>
+                {post.author.name}
               </Link>
-              <div>
-                <Link
-                  href={`/profile/${post.author._id}`}
-                  className="font-semibold text-onSurface hover:text-primary transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {post.author.name}
-                </Link>
-                <p className="text-sm text-muted-foreground">
-                  {formatDistanceToNow(new Date(post.createdAt))} ago
-                </p>
-              </div>
+              <p className="text-xs text-slate-400">
+                {formatDistanceToNow(new Date(post.createdAt))} ago
+              </p>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="bg-surface border border-border/50 shadow-lg z-50"
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"
+                onClick={(e) => e.stopPropagation()}
               >
-                <DropdownMenuItem className="cursor-pointer hover:bg-background/50 transition-colors">
-                  Report
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer hover:bg-background/50 transition-colors">
-                  Share
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          <p className="text-onSurface mb-4 whitespace-pre-wrap">
-            {post.content}
-          </p>
-
-          {post.media && (
-            <div
-              className="mb-4 rounded-lg overflow-hidden media-container"
-              onClick={handleMediaClick}
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="bg-slate-900 border border-slate-800 text-slate-200 p-1"
             >
-              {post.media.type === "image" ? (
-                <div className="relative w-full h-[500px]">
-                  <Image
-                    src={post.media.url}
-                    alt="Post content"
-                    fill
-                    className="object-cover cursor-pointer"
-                    unoptimized
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  />
-                </div>
-              ) : (
-                <video
-                  src={post.media.url}
-                  controls
-                  className="w-full h-auto max-h-[500px] cursor-pointer"
-                  poster={post.media.thumbnail}
-                />
+              <DropdownMenuItem
+                onClick={handleShare}
+                className="cursor-pointer hover:bg-slate-800 focus:bg-slate-800 rounded-md text-xs"
+              >
+                <Share2 className="h-3.5 w-3.5 mr-2 text-slate-400" />
+                Copy Link
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleToggleSave}
+                className="cursor-pointer hover:bg-slate-800 focus:bg-slate-800 rounded-md text-xs"
+              >
+                <Bookmark className="h-3.5 w-3.5 mr-2 text-amber-400" />
+                {isSaved ? "Remove Bookmark" : "Save Bookmark"}
+              </DropdownMenuItem>
+
+              {isAuthor && (
+                <DropdownMenuItem
+                  onClick={handleDeletePost}
+                  className="cursor-pointer text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 rounded-md text-xs"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                  Delete Post
+                </DropdownMenuItem>
               )}
-            </div>
-          )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-          <div className="flex items-center justify-between border-t border-border/50 pt-4">
-            <div className="flex items-center space-x-4">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`flex items-center space-x-1 ${
-                      liked ? "text-red-500" : ""
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleLike(e);
-                    }}
-                  >
-                    <Heart
-                      className={`h-4 w-4 ${liked ? "fill-current" : ""}`}
-                    />
-                    <span>{likes === null ? "0" : likes}</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-surface border border-border/50 shadow-lg z-50">
-                  Like
-                </TooltipContent>
-              </Tooltip>
+        {/* Post Text */}
+        <p className="text-slate-200 text-sm leading-relaxed mb-3.5 whitespace-pre-wrap">
+          {post.content}
+        </p>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center space-x-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    <span>{comments.length}</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-surface border border-border/50 shadow-lg z-50">
-                  Comments
-                </TooltipContent>
-              </Tooltip>
+        {/* Media Attachment */}
+        {post.media && (
+          <div
+            className="mb-4 rounded-xl overflow-hidden media-container border border-slate-800 bg-slate-950"
+            onClick={handleMediaClick}
+          >
+            {post.media.type === "image" ? (
+              <div className="relative w-full h-[380px]">
+                <Image
+                  src={post.media.url}
+                  alt="Post attachment"
+                  fill
+                  priority={priority}
+                  className="object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
+              </div>
+            ) : (
+              <video
+                src={post.media.url}
+                controls
+                className="w-full h-auto max-h-[460px] cursor-pointer"
+                poster={post.media.thumbnail}
+              />
+            )}
+          </div>
+        )}
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-surface border border-border/50 shadow-lg z-50">
-                  Share
-                </TooltipContent>
-              </Tooltip>
-            </div>
+        {/* Action Toolbar */}
+        <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs text-slate-400">
+          <div className="flex items-center space-x-2">
+            {/* Like Action */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`flex items-center space-x-1.5 rounded-lg px-2.5 py-1 transition-colors ${
+                liked
+                  ? "text-rose-500 hover:bg-rose-500/10"
+                  : "text-slate-400 hover:text-rose-400 hover:bg-slate-800"
+              }`}
+              onClick={handleLike}
+            >
+              <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
+              <span className="font-semibold text-xs">{likes}</span>
+            </Button>
+
+            {/* Comment Action */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center space-x-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg px-2.5 py-1 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/posts/${post._id}`);
+              }}
+            >
+              <MessageCircle className="h-4 w-4" />
+              <span className="font-semibold text-xs">
+                {post.commentsCount ?? 0}
+              </span>
+            </Button>
+
+            {/* Share Action */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg p-1.5 transition-colors"
+              onClick={handleShare}
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
           </div>
 
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-
-          {showComments && comments.length > 0 && (
-            <div className="mt-4 space-y-2">
-              {comments.slice(0, 3).map((comment) => (
-                <div
-                  key={comment._id}
-                  className="flex items-start space-x-2 text-sm"
-                >
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage
-                      src={comment.author.image}
-                      alt={comment.author.name}
-                    />
-                    <AvatarFallback>{comment.author.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium text-onSurface">
-                      {comment.author.name}
-                    </p>
-                    <p className="text-muted-foreground">{comment.content}</p>
-                  </div>
-                </div>
-              ))}
-              {comments.length > 3 && (
-                <Link
-                  href={`/posts/${post._id}`}
-                  className="text-sm text-primary hover:underline"
-                >
-                  View all comments
-                </Link>
-              )}
-            </div>
-          )}
+          {/* Bookmark Action */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`rounded-lg p-1.5 transition-colors ${
+              isSaved
+                ? "text-amber-400 hover:bg-amber-400/10"
+                : "text-slate-400 hover:text-amber-400 hover:bg-slate-800"
+            }`}
+            onClick={handleToggleSave}
+          >
+            <Bookmark className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`} />
+          </Button>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Fullscreen Modal */}
+      {/* Fullscreen Media Modal */}
       {isFullscreen && post.media && (
-        <div className="fixed inset-0 z-50 bg-background/95 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 bg-slate-950/95 flex items-center justify-center p-4">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-4 right-4"
+            className="absolute top-4 right-4 text-slate-300 hover:text-white bg-slate-800 rounded-full"
             onClick={() => setIsFullscreen(false)}
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
           </Button>
-          <div className="w-full h-full flex items-center justify-center p-4">
+          <div className="w-full h-full flex items-center justify-center max-w-6xl max-h-[90vh]">
             {post.media.type === "image" ? (
-              <div className="relative w-full h-full max-w-7xl">
+              <div className="relative w-full h-full">
                 <Image
                   src={post.media.url}
-                  alt="Post content"
+                  alt="Attachment preview"
                   fill
                   className="object-contain"
                   unoptimized
@@ -323,7 +379,7 @@ export function Post({ post, showComments = true }: PostProps) {
               <video
                 src={post.media.url}
                 controls
-                className="w-full h-auto max-h-[90vh]"
+                className="w-full h-auto max-h-[85vh] rounded-xl"
                 poster={post.media.thumbnail}
                 autoPlay
               />
