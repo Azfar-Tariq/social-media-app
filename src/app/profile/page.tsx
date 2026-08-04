@@ -21,6 +21,12 @@ function ProfilePage() {
     "overview"
   );
 
+  // Determine login method from email domain
+  const email = session?.user?.email || "";
+  const isDemo = email.endsWith("@chirpify.test");
+  const isGoogle = !isDemo && !email.endsWith("@chirpify.test") && session?.user?.image?.includes("googleusercontent");
+  const loginMethod = isDemo ? "Demo Account" : isGoogle ? "Google OAuth" : "Email & Password";
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-5">
@@ -84,10 +90,10 @@ function ProfilePage() {
                 subtext="Chirpify User"
               />
               <StatCard
-                label="Account"
-                value="Verified"
+                label="Signed In Via"
+                value={loginMethod}
                 icon={<Shield className="h-5 w-5" />}
-                subtext="Google OAuth"
+                subtext={email}
               />
               <StatCard
                 label="Saved"
@@ -132,13 +138,17 @@ function ProfilePage() {
                   Settings
                 </h2>
                 <div className="p-5 rounded-lg bg-slate-950 border border-slate-800 text-center space-y-2">
-                  <Settings className="h-6 w-6 text-blue-400 mx-auto" />
                   <h3 className="text-slate-200 font-semibold text-xs">
-                    Account Managed via Google Security
+                    Signed in via {loginMethod}
                   </h3>
                   <p className="text-slate-400 text-[11px] max-w-sm mx-auto">
-                    Profile credentials and authentication are managed securely through Google OAuth.
+                    {isDemo
+                      ? "You are using a quick demo account. No real credentials are stored."
+                      : isGoogle
+                      ? "Your profile is managed securely through Google OAuth."
+                      : "Your account uses an email address and password stored securely on Chirpify."}
                   </p>
+                  <p className="text-[10px] text-slate-500">{email}</p>
                 </div>
               </div>
             )}
